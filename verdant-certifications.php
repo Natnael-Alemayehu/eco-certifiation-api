@@ -82,7 +82,7 @@ function verdant_register_cpt_fields(): void {
     }
 }
 
-add_action('rest-api-init', 'verdant_register_cpt_fields');
+add_action('rest_api_init', 'verdant_register_cpt_fields');
 
 
 // MOCK DATA
@@ -167,7 +167,7 @@ function verdant_register_filter_endpoint(): void {
     );
 }
 
-add_action('rest-api-init', 'verdant_register_filter_endpoint');
+add_action('rest_api_init', 'verdant_register_filter_endpoint');
 
 
 function verdant_get_certifications(WP_REST_Request $request) : WP_REST_Response {
@@ -218,8 +218,11 @@ function verdant_block_frontend(): void {
     if ( is_admin() ) return;
     if ( defined('REST_REQUEST') && REST_REQUEST ) return;
     if ( defined('DOING_CRON') && DOING_CRON ) return;
-    if ( defined('DOING_AJAX') && DOING_AJAX ) return;
-    if ( strpos($_SERVER['REQUEST_URI'] ?? '', '/wp-json/') !== false ) return;
+
+    $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+    if ( strpos($request_uri, '/wp-json/') !== false ) return;
+    if ( strpos($request_uri, '/index.php?rest_route=') !== false ) return;
+    if ( isset($_GET['rest_route']) ) return;
 
     wp_die(
         'This WordPress installation is a headless API backend. No frontend is available.',
