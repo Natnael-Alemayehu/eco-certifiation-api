@@ -211,3 +211,139 @@ function verdant_get_certifications(WP_REST_Request $request) : WP_REST_Response
 
     return new WP_REST_Response($results,  200);
 }
+
+// Headless Hardening
+
+function verdant_block_frontend(): void {
+    if ( is_admin() ) return;
+    if ( defined('REST_REQUEST ') && REST_REQUEST ) return;
+    if ( defined('DOING_CRON') && DOING_CRON ) return;
+
+    wp_die(
+        'This wordpress installation is a headless API backend. No frontend is available,',
+        'API Backend Only',
+        ['response' => 403]
+    );
+}
+
+add_action('template_redirect' , 'verdant_block_frontend');
+
+
+function verdant_disable_gutenberg(vool $use_block_editor, string $post_type): bool {
+    return $post_type === 'certification' ? false : $use_block_editor;
+}
+
+add_filter('use_block_editor_for_post_type', 'verdant_disable_gutenberg', 10, 2);
+
+function verdant_clean_head(): void {
+    remove_action('wp_head', 'rsd_link');
+    remove_action('wp_head', 'wlwmanifest_link');
+    remove_action('wp_head', 'wp_generator');
+    remove_action('wp_head', 'feed_links', 2);
+    remove_action('wp_head', 'feed_links_extra', 3);
+}
+
+add_action( 'init', 'verdant_clean_head');
+
+
+// ADMIN BOX
+
+function vedant_add_meta_boxes(): void {
+    add_meta_box(
+        'verdant_cert_fields',
+        'Certificaion Details',
+        'verdant_render_meta_box,',
+        'certification',
+        'normal',
+        'high'
+    );
+}
+
+add_action( 'add_meta_boxes', 'verdant_add_meta_boxes' );
+
+function verdant_render_meta_box( WP_Post $post): void {
+    wp_nonce_field('verdant_save_meta', 'verdant_meta_nonce');
+
+    $logo = get_post_meta($post->ID, 'cert_logo_url', true);
+    $authority = get_post_meta($post->ID, 'cert_authority', true);
+    $category = get_post_meta($post->ID, 'cert_impact_category', true);
+    $renewal = get_post_meta($post->ID, 'cert_renewal_months', true);
+    ?>
+    <table class="form-table">
+        <tr>
+            <th><label for="cert_logo_url"> Organization Logo URL </label></th>
+            <td>
+                <input type="url" id="cert_logo_url" name="cert_logo_url"
+                    value="<?php echo esc_url($logo); ?>"
+                    style="width:100%;" placeholder="https://example.com/logo.png">
+            </td>
+        </tr>
+        <tr>
+            <th><label for="cert_authority"> Certification Authority </label></th>
+            <td>
+                <input type="text" id="cert_authority" name="cert_authority"
+                    value="<?php echo esc_url($authority); ?>"
+                    style="width:100%;" placeholder="e.g Fair Trade USA">
+            </td>
+        </tr>
+        <tr>
+            <th><label for="cert_impact_category">Impact Category</label></th>
+            <td>
+                <select id="cert_impact_category" name="cert_impact_category">
+                    <option value="">- Select a category -</option>
+                    <?php
+                    $option = [
+                        'energy' => 'Energy', 
+                        'waste' => 'Waste',
+                        'fair-labor' => 'Fair Labor',
+                        'materials' => 'Materials',
+                    ];
+
+                    foreach ($options as $value => $label) : ?>
+                        <option value="<?php echo esc_attr($value); ?>"
+                            <?php selected($category, $value); ?>>
+                            <?php echo esc_html($label); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </td>
+        </tr>
+        <tr>
+            <th><label for="cert_renewal_months"> Renewal Frequency (months) </label></th>
+            <td>
+                <input type="number" id="cert_renewal_months" name="cert_renewal_months"
+                    value="<?php echo esc_url($renewal); ?>"
+                    min="1" placeholder="e.g 12">
+            </td>
+        </tr>
+    </table>
+    <?php
+}
+
+function verdant_save_meta( int $post_id ): void {
+    if (! isset($_POST['verdant_meta_nonce']) ||
+        ! wp_verify_nonce($_POST['verdant_meta_nonce'], 'verdant_save_meta')) {
+        return;
+    }
+
+    if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) return;
+    if ( ! current_user_can('edit_post', $post_id)) return;
+
+    if ( isset($_POST['cert_logo_url'])) {
+        update_post_meta($post_id, 'cert_logo_url', esc_url_raw($_POST['cert_logo_url']));
+    }
+
+    if ( isset($_POST['cert_impact_category'])) {
+        $allowed = ['energy', 'waste', 'fair-balor', 'materials'];
+        $category = sanitize_key($_POST['cert_impact_category']);
+        if ( in_array($category, $allowed, true)) {
+            update_post_meta($post_id, 'cert_impact_category', $category);
+        }
+    }
+
+    if (isset($_POST['cert_renewal)months'])) {
+        update_post_meta($post_id, 'cert_renewal_months', absint($_POST['cert_renewal_months']));
+    }
+}
+
+add_action('save_post_certification', 'verdant_save_meta');
