@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Verdant Collective - Eco-Certification API
- * Description: Headless Eordpress backend serving eco-certification data via REST API.
+ * Description: Headless WordPress backend serving eco-certification data via REST API.
  * Version: 1.0.0
  * Author: Nate
  */
@@ -61,7 +61,7 @@ function verdant_register_cpt_fields(): void {
                     $allowed_categories = ['energy', 'waste', 'fair-labor', 'materials'];
 
                     if ($field_name === 'cert_renewal_months') {
-                        update_post_meta($onject->ID, $field_name, absint($value));
+                        update_post_meta($object->ID, $field_name, absint($value));
                     } elseif ( $field_name === 'cert_logo_url' ) {
                         update_post_meta( $object->ID, $field_name, esc_url_raw($value));
                     } elseif ( $field_name === 'cert_impact_category' ) {
@@ -114,12 +114,12 @@ function verdant_create_mock_data(): void {
 
     foreach ($certifications as $cert) {
         $existing = new WP_Query([
-            'post_type' => 'certifications', 
+            'post_type' => 'certification',
             'post_status' => 'publish',
             'title' => $cert['title'],
-            'post_per_page' => 1, 
+            'posts_per_page' => 1,
             'no_found_rows' => true,
-            'update_post_meta_chache' => false,
+            'update_post_meta_cache' => false,
             'update_post_term_cache' => false,
         ]);
 
@@ -159,7 +159,7 @@ function verdant_register_filter_endpoint(): void {
                     'type' => 'string', 
                     'sanitize_callback' => 'sanitize_key',
                     'validate_callback' => function($value) {
-                        return in_array($value, ['energy', 'waste', 'fair-labor', 'minerals'], true);
+                        return in_array($value, ['energy', 'waste', 'fair-labor', 'materials'], true);
                     },
                 ],
             ],
@@ -172,9 +172,9 @@ add_action('rest-api-init', 'verdant_register_filter_endpoint');
 
 function verdant_get_certifications(WP_REST_Request $request) : WP_REST_Response {
     $query_args = [
-        'post_type' => 'certifiation', 
+        'post_type' => 'certification',
         'post_status' => 'publish',
-        'post_per_page' => -1,
+        'posts_per_page' => -1,
     ];
 
     $category = $request->get_param('category');
@@ -216,11 +216,13 @@ function verdant_get_certifications(WP_REST_Request $request) : WP_REST_Response
 
 function verdant_block_frontend(): void {
     if ( is_admin() ) return;
-    if ( defined('REST_REQUEST ') && REST_REQUEST ) return;
+    if ( defined('REST_REQUEST') && REST_REQUEST ) return;
     if ( defined('DOING_CRON') && DOING_CRON ) return;
+    if ( defined('DOING_AJAX') && DOING_AJAX ) return;
+    if ( strpos($_SERVER['REQUEST_URI'] ?? '', '/wp-json/') !== false ) return;
 
     wp_die(
-        'This wordpress installation is a headless API backend. No frontend is available,',
+        'This WordPress installation is a headless API backend. No frontend is available.',
         'API Backend Only',
         ['response' => 403]
     );
@@ -282,7 +284,7 @@ function verdant_render_meta_box( WP_Post $post): void {
             <th><label for="cert_authority"> Certification Authority </label></th>
             <td>
                 <input type="text" id="cert_authority" name="cert_authority"
-                    value="<?php echo esc_url($authority); ?>"
+                    value="<?php echo esc_attr($authority); ?>"
                     style="width:100%;" placeholder="e.g Fair Trade USA">
             </td>
         </tr>
@@ -292,8 +294,8 @@ function verdant_render_meta_box( WP_Post $post): void {
                 <select id="cert_impact_category" name="cert_impact_category">
                     <option value="">- Select a category -</option>
                     <?php
-                    $option = [
-                        'energy' => 'Energy', 
+                    $options = [
+                        'energy' => 'Energy',
                         'waste' => 'Waste',
                         'fair-labor' => 'Fair Labor',
                         'materials' => 'Materials',
@@ -312,7 +314,7 @@ function verdant_render_meta_box( WP_Post $post): void {
             <th><label for="cert_renewal_months"> Renewal Frequency (months) </label></th>
             <td>
                 <input type="number" id="cert_renewal_months" name="cert_renewal_months"
-                    value="<?php echo esc_url($renewal); ?>"
+                    value="<?php echo esc_attr($renewal); ?>"
                     min="1" placeholder="e.g 12">
             </td>
         </tr>
@@ -334,14 +336,14 @@ function verdant_save_meta( int $post_id ): void {
     }
 
     if ( isset($_POST['cert_impact_category'])) {
-        $allowed = ['energy', 'waste', 'fair-balor', 'materials'];
+        $allowed = ['energy', 'waste', 'fair-labor', 'materials'];
         $category = sanitize_key($_POST['cert_impact_category']);
         if ( in_array($category, $allowed, true)) {
             update_post_meta($post_id, 'cert_impact_category', $category);
         }
     }
 
-    if (isset($_POST['cert_renewal)months'])) {
+    if (isset($_POST['cert_renewal_months'])) {
         update_post_meta($post_id, 'cert_renewal_months', absint($_POST['cert_renewal_months']));
     }
 }
