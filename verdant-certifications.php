@@ -11,8 +11,8 @@ if (!defined('ABSPATH')) {
 }
 
 // Custom post type
-function verdant_register_cpt(): void{
-    $label = [
+function verdant_register_cpt(): void {
+    $labels = [
         'name' => 'Certifications', 
         'singular_name' => 'Certification',
         'add_new_item' => 'Add New Certification',
@@ -23,14 +23,14 @@ function verdant_register_cpt(): void{
         'not_found_in_trash' => 'No certificatoins found in trash.',
     ];
 
-    $register_post_type( 'certification', [
-        'labels' => $label,
+    register_post_type('certification', [
+        'labels' => $labels,
         'public' => false,
         'show_ui' => true,
         'show_in_rest' => true,
         'rest_base' => 'certifications',
         'supports' => ['title', 'editor', 'thumbnail'],
-        'menu_icon' => 'dashicons-awatds',
+        'menu_icon' => 'dashicons-awards',
         'has_archive' => false,
     ]);
 }
@@ -229,7 +229,7 @@ function verdant_block_frontend(): void {
 add_action('template_redirect' , 'verdant_block_frontend');
 
 
-function verdant_disable_gutenberg(vool $use_block_editor, string $post_type): bool {
+function verdant_disable_gutenberg(bool $use_block_editor, string $post_type): bool {
     return $post_type === 'certification' ? false : $use_block_editor;
 }
 
@@ -248,11 +248,11 @@ add_action( 'init', 'verdant_clean_head');
 
 // ADMIN BOX
 
-function vedant_add_meta_boxes(): void {
+function verdant_add_meta_boxes(): void {
     add_meta_box(
         'verdant_cert_fields',
         'Certificaion Details',
-        'verdant_render_meta_box,',
+        'verdant_render_meta_box',
         'certification',
         'normal',
         'high'
